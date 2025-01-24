@@ -1,15 +1,20 @@
 ﻿#include "../exercise.h"
+#include <cstring>
 
 // READ: 类模板 <https://zh.cppreference.com/w/cpp/language/class_template>
 
-template<class T>
+template <class T>
 struct Tensor4D {
     unsigned int shape[4];
-    T *data;
+    T* data;
 
-    Tensor4D(unsigned int const shape_[4], T const *data_) {
+    Tensor4D(unsigned int const shape_[4], T const* data_) {
         unsigned int size = 1;
         // TODO: 填入正确的 shape 并计算 size
+        for (int i = 0; i < 4; ++i) {
+            shape[i] = shape_[i];
+            size *= shape[i];
+        }
         data = new T[size];
         std::memcpy(data, data_, size * sizeof(T));
     }
@@ -18,22 +23,43 @@ struct Tensor4D {
     }
 
     // 为了保持简单，禁止复制和移动
-    Tensor4D(Tensor4D const &) = delete;
-    Tensor4D(Tensor4D &&) noexcept = delete;
+    Tensor4D(Tensor4D const&) = delete;
+    Tensor4D(Tensor4D&&) noexcept = delete;
 
     // 这个加法需要支持“单向广播”。
     // 具体来说，`others` 可以具有与 `this` 不同的形状，形状不同的维度长度必须为 1。
     // `others` 长度为 1 但 `this` 长度不为 1 的维度将发生广播计算。
     // 例如，`this` 形状为 `[1, 2, 3, 4]`，`others` 形状为 `[1, 2, 1, 4]`，
     // 则 `this` 与 `others` 相加时，3 个形状为 `[1, 2, 1, 4]` 的子张量各自与 `others` 对应项相加。
-    Tensor4D &operator+=(Tensor4D const &others) {
+    Tensor4D& operator+=(Tensor4D const& others) {
         // TODO: 实现单向广播的加法
+        for (int i = 0; i < 4; ++i) {
+            if (others.shape[i] != 1 && others.shape[i] != shape[i]) {
+                return *this;
+            }
+        }
+
+        for (unsigned int i0 = 0; i0 < shape[0]; ++i0) {
+            for (unsigned int i1 = 0; i1 < shape[1]; ++i1) {
+                for (unsigned int i2 = 0; i2 < shape[2]; ++i2) {
+                    for (unsigned int i3 = 0; i3 < shape[3]; ++i3) {
+                        unsigned int current_index = i0 * (shape[1] * shape[2] * shape[3]) + i1 * (shape[2] * shape[3]) + i2 * shape[3] + i3;
+                        unsigned int o0 = (others.shape[0] == 1) ? 0 : i0;
+                        unsigned int o1 = (others.shape[1] == 1) ? 0 : i1;
+                        unsigned int o2 = (others.shape[2] == 1) ? 0 : i2;
+                        unsigned int o3 = (others.shape[3] == 1) ? 0 : i3;
+                        unsigned int others_index = o0 * (others.shape[1] * others.shape[2] * others.shape[3]) + o1 * (others.shape[2] * others.shape[3]) + o2 * others.shape[3] + o3;
+                        data[current_index] += others.data[others_index];
+                    }
+                }
+            }
+        }
         return *this;
     }
 };
 
 // ---- 不要修改以下代码 ----
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     {
         unsigned int shape[]{1, 2, 3, 4};
         // clang-format off
